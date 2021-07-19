@@ -1,7 +1,9 @@
+// Package tunnel TODO 控制通道连接池管理
 package tunnel
 
 import (
 	"fmt"
+	"github.com/hashicorp/yamux"
 	"log"
 	"net"
 	"strconv"
@@ -32,14 +34,13 @@ type ServerConfig struct {
 }
 
 func ServerRun(conf *ServerConfig) (err error) {
-	connectionPool = make(map[string]*ConnMatch, 32)
-
 	defer func() {
 		if err = recover().(error); err != nil {
 			fmt.Println(err)
 		}
 	}()
 
+	connectionPool = make(map[string]*ConnMatch, 32)
 	go createControlChannel(conf.ControlPost)
 	go acceptUserRequest(conf.VisitorPost)
 	go acceptClientRequest(conf.TunnelPost)
@@ -75,20 +76,18 @@ func createControlChannel(controlAddr string) {
 
 // 和客户端保持一个心跳链接
 func keepAlive() {
-	go func() {
-		for {
-			if clientConn == nil {
-				return
-			}
-			_, err := clientConn.Write(([]byte)(KeepAlive + "\n"))
-			if err != nil {
-				log.Println("[已断开客户端连接]", clientConn.RemoteAddr())
-				clientConn = nil
-				return
-			}
-			time.Sleep(time.Second * 3)
+	for {
+		if clientConn == nil {
+			return
 		}
-	}()
+		_, err := clientConn.Write(([]byte)(KeepAlive + "\n"))
+		if err != nil {
+			log.Println("[已断开客户端连接]", clientConn.RemoteAddr())
+			clientConn = nil
+			return
+		}
+		time.Sleep(time.Second * 3)
+	}
 }
 
 // 监听来自用户的请求
@@ -115,7 +114,7 @@ func addConn2Pool(accept *net.TCPConn) {
 	defer connectionPoolLock.Unlock()
 
 	now := time.Now()
-	connectionPool[strconv.FormatInt(now.UnixNano(), 10)] = &ConnMatch{now, accept,}
+	connectionPool[strconv.FormatInt(now.UnixNano(), 10)] = &ConnMatch{now, accept}
 }
 
 // 发送给客户端新消息
@@ -143,12 +142,25 @@ func acceptClientRequest(tunnelAddr string) {
 		if err != nil {
 			continue
 		}
-		log.Println("[新客户端请求隧道]：" + tcpConn.RemoteAddr().String())
-		go establishTunnel(tcpConn)
+		go sessionServer(tcpConn)
 	}
 }
 
-func establishTunnel(tunnel *net.TCPConn) {
+func sessionServer(tcpConn *net.TCPConn)  {
+	session, _ := yamux.Server(tcpConn, nil)
+	for {
+		// 建立多个流通路
+		stream, err := session.Accept()
+		if err != nil {
+			fmt.Println("session over.")
+			return
+		}
+		log.Println("[新客户端请求隧道]：" + tcpConn.RemoteAddr().String())
+		go establishTunnel(stream)
+	}
+}
+
+func establishTunnel(tunnel net.Conn) {
 	connectionPoolLock.Lock()
 	defer connectionPoolLock.Unlock()
 

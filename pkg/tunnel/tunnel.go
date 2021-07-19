@@ -35,12 +35,12 @@ func CreateTCPConn(addr string) (*net.TCPConn, error) {
 	return tcpListener, nil
 }
 
-func Join2Conn(local *net.TCPConn, remote *net.TCPConn) {
+func Join2Conn(local,remote net.Conn) {
 	go joinConn(local, remote)
 	go joinConn(remote, local)
 }
 
-func joinConn(local *net.TCPConn, remote *net.TCPConn) {
+func joinConn(local,remote net.Conn) {
 	defer local.Close()
 	defer remote.Close()
 	_, err := io.Copy(local, remote)

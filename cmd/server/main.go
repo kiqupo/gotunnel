@@ -1,21 +1,35 @@
 package main
 
-import "tunnelDemo/pkg/tunnel"
+import (
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"tunnelDemo/pkg/tunnel"
+)
 
 const (
-	controlAddr = ":8009"
-	tunnelAddr  = ":8008"
-	visitAddr   = ":8007"
+	controlPost = ":8009"
+	tunnelPost  = ":8008"
+	visitPost   = ":8007"
+	// pprof性能监听端口
+	monitorPost = ":6060"
 )
 
 func main() {
+	go pprofMonitor()
+
 	conf := &tunnel.ServerConfig{
-		ControlPost:controlAddr,
-		VisitorPost:visitAddr,
-		TunnelPost:tunnelAddr,
+		ControlPost:controlPost,
+		VisitorPost:visitPost,
+		TunnelPost:tunnelPost,
 	}
 	err := tunnel.ServerRun(conf)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+}
+
+// pprof性能监听
+func pprofMonitor()  {
+	log.Println(http.ListenAndServe(monitorPost, nil))
 }

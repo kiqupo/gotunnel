@@ -23,3 +23,40 @@
     |   |-- network.go  --工具类
     |-- README.md
 ```
+
+## 快速使用
+```
+go mod tidy
+```
+server（SC端）
+```
+conf := &tunnel.ServerConfig{
+		ControlPost:controlAddr,
+		VisitorPost:visitAddr,
+		TunnelPost:tunnelAddr,
+	}
+	err := tunnel.ServerRun(conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+```
+client（SA端）
+```
+conf := &tunnel.ClientConfig{
+		ControllerAddr:remoteControlAddr,
+		TunnelAddr:remoteServerAddr,
+		LocalServerAddr:localServerAddr,
+	}
+	err := tunnel.ClientRun(conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+```
+
+## 性能监控地址
+> server: 127.0.0.1:6060
+
+> client: 127.0.0.1:6061
+
+## TODO
+1. 控制通道连接池管理

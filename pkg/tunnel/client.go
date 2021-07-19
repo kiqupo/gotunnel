@@ -3,6 +3,7 @@ package tunnel
 import (
 	"bufio"
 	"errors"
+	"github.com/hashicorp/yamux"
 	"io"
 	"log"
 	"net"
@@ -20,14 +21,17 @@ type ClientConfig struct {
 }
 
 func ClientRun(conf *ClientConfig) error{
-	tcpConn, err := CreateTCPConn(conf.ControllerAddr)
+	ctrlConn, err := CreateTCPConn(conf.ControllerAddr)
 	if err != nil {
 		log.Println("[连接失败]" + conf.ControllerAddr + err.Error())
 		return err
 	}
 	log.Println("[已连接]" + conf.ControllerAddr)
 
-	reader := bufio.NewReader(tcpConn)
+	reader := bufio.NewReader(ctrlConn)
+
+	remote := connectRemote(conf.TunnelAddr)
+	session, _ := yamux.Client(remote, nil)
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil || err == io.EOF {
@@ -36,7 +40,8 @@ func ClientRun(conf *ClientConfig) error{
 
 		// 当有新连接信号出现时，新建一个tcp连接
 		if s == NewConnection+"\n" {
-			go ClientTunnel(conf.LocalServerAddr,conf.TunnelAddr)
+			stream, _ := session.Open()
+			go ClientTunnel(conf.LocalServerAddr,stream)
 		}
 	}
 
@@ -44,18 +49,17 @@ func ClientRun(conf *ClientConfig) error{
 	return errors.New("控制已经断开")
 }
 
-func ClientTunnel(localServerAddr,remoteTunnelAddr string) {
+func ClientTunnel(localServerAddr string,conn net.Conn) {
 	local := connectLocal(localServerAddr)
-	remote := connectRemote(remoteTunnelAddr)
 
-	if local != nil && remote != nil {
-		Join2Conn(local, remote)
+	if local != nil && conn != nil {
+		Join2Conn(local, conn)
 	} else {
 		if local != nil {
 			_ = local.Close()
 		}
-		if remote != nil {
-			_ = remote.Close()
+		if conn != nil {
+			_ = conn.Close()
 		}
 	}
 }
