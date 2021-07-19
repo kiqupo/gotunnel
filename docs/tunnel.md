@@ -43,15 +43,8 @@ func joinConn(local *net.TCPConn, remote *net.TCPConn) {
 ``` 
 
 ## 流程图（动态通知SA连接）
-```sequence
-SA->SC: TCP连接，建立控制通道
-客户端1->SC: 请求
-SC->SA: 通知建立通道
-SA->SC: 建立通道连接成功
-SC->SA: 请求数据转发
-SA->SA: 数据转发至HTTP监听端口
-```
+![时序图](images/sequence.png)
 
 ## 后续讨论
 1. 是否有必要使用SOCKS5对客户端进行认证：可能会增加客户端接入难度，高并发状态下会影响性能
-2. 做好连接复用
+2. 链接复用：当用于HTTPS普通请求时不需要链接复用。当用于一段时间内频繁操作时，链接复用更佳
