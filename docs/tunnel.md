@@ -26,6 +26,7 @@
 ### 多路复用：
 因频繁创建与销毁TCP连接开销很大，有必要对SA与SC之间TCP连接进行复用。<br/>
 使用 [yamux](https://github.com/hashicorp/yamux) 包进行TCP连接多路复用<br/>
+![多路复用原理图](images/yamux.png)
 
 ## 主要实现技术：io拷贝
 ``` golang
@@ -54,16 +55,13 @@ func joinConn(local *net.TCPConn, remote *net.TCPConn) {
 ## 压力并发测试
 ![压力测试图](images/test.png)
 
-1万次3并发GET请求，相应时间在2ms左右
-
+1万次3并发GET请求，相应时间在2ms左右<br/>
 ![测试结果图](images/testresult.png)
 
-HTTP服务响应时间：
-
+HTTP服务响应时间：<br/>
 ![响应结果图](images/testresult2.png)
 
-pprof：
-
+pprof：<br/>
 ![响应结果图](images/testresult3.png)
 
 ## 后续讨论
