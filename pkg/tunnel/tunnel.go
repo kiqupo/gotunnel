@@ -1,4 +1,4 @@
-package network
+package tunnel
 
 import (
 	"io"
