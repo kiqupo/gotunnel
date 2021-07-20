@@ -41,7 +41,7 @@ func ClientRun(conf *ClientConfig) error{
 		// 当有新连接信号出现时，新建一个tcp连接
 		if s == NewConnection+"\n" {
 			stream, _ := session.Open()
-			go ClientTunnel(conf.LocalServerAddr,stream)
+			go clientTunnel(conf.LocalServerAddr,stream)
 		}
 	}
 
@@ -49,7 +49,7 @@ func ClientRun(conf *ClientConfig) error{
 	return errors.New("控制已经断开")
 }
 
-func ClientTunnel(localServerAddr string,conn net.Conn) {
+func clientTunnel(localServerAddr string,conn net.Conn) {
 	local := connectLocal(localServerAddr)
 
 	if local != nil && conn != nil {

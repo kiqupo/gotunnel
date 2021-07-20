@@ -1,4 +1,4 @@
-// Package tunnel TODO 控制通道连接池管理
+// Package tunnel TODO 1.ControllerManager控制通道连接池管理，2.Controller对象管理
 package tunnel
 
 import (
@@ -69,20 +69,20 @@ func createControlChannel(controlAddr string) {
 			_ = tcpConn.Close()
 		} else {
 			clientConn = tcpConn
-			go keepAlive()
+			go keepAlive(tcpConn)
 		}
 	}
 }
 
 // 和客户端保持一个心跳链接
-func keepAlive() {
+func keepAlive(conn *net.TCPConn) {
 	for {
-		if clientConn == nil {
+		if conn == nil {
 			return
 		}
-		_, err := clientConn.Write(([]byte)(KeepAlive + "\n"))
+		_, err := conn.Write(([]byte)(KeepAlive + "\n"))
 		if err != nil {
-			log.Println("[已断开客户端连接]", clientConn.RemoteAddr())
+			log.Println("[已断开客户端连接]", conn.RemoteAddr())
 			clientConn = nil
 			return
 		}
@@ -104,6 +104,7 @@ func acceptUserRequest(visitAddr string) {
 		}
 		log.Println("[新用户请求]：" + tcpConn.RemoteAddr().String())
 		addConn2Pool(tcpConn)
+		// 通知客户端建立通道
 		sendMessage(NewConnection + "\n")
 	}
 }

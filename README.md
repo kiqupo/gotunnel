@@ -59,4 +59,5 @@ conf := &tunnel.ClientConfig{
 > client: 127.0.0.1:6061
 
 ## TODO
-1. 控制通道连接池管理
+1. 完善ControllerManager总连接池管理
+2. 晚上Controller对象对SA通道管理
