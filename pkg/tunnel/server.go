@@ -41,15 +41,15 @@ func ServerRun(conf *ServerConfig) (err error) {
 	}()
 
 	connectionPool = make(map[string]*ConnMatch, 32)
-	go createControlChannel(conf.ControlPost)
-	go acceptUserRequest(conf.VisitorPost)
-	go acceptClientRequest(conf.TunnelPost)
+	go serveControlChannel(conf.ControlPost)
+	go userRequestListener(conf.VisitorPost)
+	go saTunnelListener(conf.TunnelPost)
 	cleanConnectionPool()
 	return err
 }
 
 // 创建一个控制通道，用于传递控制消息，如：心跳，创建新连接
-func createControlChannel(controlAddr string) {
+func serveControlChannel(controlAddr string) {
 	tcpListener, err := CreateTCPListener(controlAddr)
 	if err != nil {
 		panic(err)
@@ -91,7 +91,7 @@ func keepAlive(conn *net.TCPConn) {
 }
 
 // 监听来自用户的请求
-func acceptUserRequest(visitAddr string) {
+func userRequestListener(visitAddr string) {
 	tcpListener, err := CreateTCPListener(visitAddr)
 	if err != nil {
 		panic(err)
@@ -130,8 +130,8 @@ func sendMessage(message string) {
 	}
 }
 
-// 接收客户端来的请求并建立隧道
-func acceptClientRequest(tunnelAddr string) {
+// 接收sa来的请求并建立隧道
+func saTunnelListener(tunnelAddr string) {
 	tcpListener, err := CreateTCPListener(tunnelAddr)
 	if err != nil {
 		panic(err)
