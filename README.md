@@ -2,8 +2,7 @@
 
 ## 测试端口：
 1. 用户访问端口：8007
-2. SC控制SA端口：8009
-3. 双向隧道端口：8008
+2. 双向隧道端口：8008
 
 ## 测试：
 >1. postman
@@ -19,8 +18,11 @@
     |       |-- main.go --sa通道demo
     |-- docs
     |   |-- tunnel.md   --预研文档
-    |-- utils
-    |   |-- network.go  --工具类
+    |-- pkg
+    |   |-- tunnel
+    |       |-- client.go --通道客户端工具类
+    |       |-- server.go --通道服务端工具类
+    |       |-- tunnel.go --通道公用工具类
     |-- README.md
 ```
 
@@ -30,27 +32,14 @@ go mod tidy
 ```
 server（SC端）
 ```
-conf := &tunnel.ServerConfig{
-		ControlPost:controlAddr,
-		VisitorPost:visitAddr,
-		TunnelPost:tunnelAddr,
-	}
-	err := tunnel.ServerRun(conf)
-	if err != nil {
-		log.Fatal(err)
-	}
+tunnel.ServerTunnel(conf)
+
+// 模拟分配端口
+tunnel.RegisterController("213", tunnelPost, visitPost)
 ```
 client（SA端）
 ```
-conf := &tunnel.ClientConfig{
-		ControllerAddr:remoteControlAddr,
-		TunnelAddr:remoteServerAddr,
-		LocalServerAddr:localServerAddr,
-	}
-	err := tunnel.ClientRun(conf)
-	if err != nil {
-		log.Fatal(err)
-	}
+tunnel.ClientRun(conf)
 ```
 
 ## 性能监控地址
@@ -59,5 +48,3 @@ conf := &tunnel.ClientConfig{
 > client: 127.0.0.1:6061
 
 ## TODO
-1. 完善ControllerManager总连接池管理
-2. 晚上Controller对象对SA通道管理
