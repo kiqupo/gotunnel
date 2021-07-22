@@ -19,49 +19,16 @@
 
 ## 主要机制
 ### 端口分配：
-SA启动时请求通道接口，SC根据SA上报的SAID，分配出不重复的客户端通道端口与SA通道端口，并且返回连接数N
+SA启动时请求通道接口，SC根据SA上报的SAID，分配出不重复的客户端通道端口与SA通道端口，并且返回连接数N<br/>
 ![端口分配图](images/port.png)
 
 ### 多路复用/连接创建：
 1. 背景：当客户端频繁使用短连接请求时，频繁创建与销毁TCP连接开销很大导致性能降低，所以提出对SA与SC之间TCP连接复用机制。
 2. 选型 [yamux](https://github.com/hashicorp/yamux) 包来实现
-   1. 原理：把一个TCP连接(session)虚化成多个数据流(stream)，并不互相阻塞<br/>
+   1. 原理：把一个TCP连接(session)虚化成多个异步数据流(stream)<br/>
    ![多路复用原理图](images/yamux.png)
    2. yamux自带心跳检测
 3. 机制：把N个TCP连接虚拟成N个session，接收到用户请求后再动态创建stream连接。<br/>
    ![连接创建逻辑图](images/newconnect.png)
-
-## 主要实现技术：io拷贝
-``` golang
-io.Copy(src, dest)
-``` 
-``` golang
-func Join2Conn(local *net.TCPConn, remote *net.TCPConn) {
-	go joinConn(local, remote)
-	go joinConn(remote, local)
-}
-
-func joinConn(local *net.TCPConn, remote *net.TCPConn) {
-	defer local.Close()
-	defer remote.Close()
-	_, err := io.Copy(local, remote)
-	if err != nil {
-		log.Println("copy failed ", err.Error())
-		return
-	}
-}
-``` 
-
-## 压力并发测试
-![压力测试图](images/test.png)
-
-1万次3并发GET请求，相应时间在2ms左右<br/>
-![测试结果图](images/testresult.png)
-
-HTTP服务响应时间：<br/>
-![响应结果图](images/testresult2.png)
-
-pprof：<br/>
-![响应结果图](images/testresult3.png)
 
 ## TODO：
