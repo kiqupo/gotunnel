@@ -88,6 +88,7 @@ func UnRegisterController(userPort int) error {
 	return errors.New("单例未初始化")
 }
 
+// TunnelListen 监听SA的TCP连接请求
 func (c *Controller) TunnelListen() error {
 	port := strconv.Itoa(c.TunnelPort)
 	tcpListener, err := CreateTCPListener(":" + port)
@@ -125,6 +126,7 @@ func (c *Controller) ConnListen() {
 	}
 }
 
+// UserListen 监听用户请求
 func (c *Controller) UserListen() error {
 	port := strconv.Itoa(c.UserPort)
 	tcpListener, err := CreateTCPListener(":" + port)
