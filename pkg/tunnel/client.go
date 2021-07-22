@@ -1,17 +1,19 @@
 package tunnel
 
 import (
-	"bufio"
-	"errors"
+	"fmt"
 	"github.com/hashicorp/yamux"
-	"io"
 	"log"
 	"net"
 )
 
+type Client struct {
+	conf   *ClientConfig
+}
+
 type ClientConfig struct {
-	// 控制通道地址
-	ControllerAddr string
+	// 固定TCP连接数
+	ConnectCount int `json:"connect_count"`
 
 	// 需要连接的通道地址
 	TunnelAddr string
@@ -20,33 +22,35 @@ type ClientConfig struct {
 	LocalServerAddr string
 }
 
-func ClientRun(conf *ClientConfig) error{
-	ctrlConn, err := CreateTCPConn(conf.ControllerAddr)
-	if err != nil {
-		log.Println("[连接失败]" + conf.ControllerAddr + err.Error())
-		return err
-	}
-	log.Println("[已连接]" + conf.ControllerAddr)
+func ClientTunnel(conf *ClientConfig) *Client {
+	once.Do(func() {
+		client = &Client{
+			conf:   conf,
+		}
+	})
+	return client
+}
 
-	reader := bufio.NewReader(ctrlConn)
-
-	remote := connectRemote(conf.TunnelAddr)
-	session, _ := yamux.Client(remote, nil)
+func (c *Client)ConnectTunnel()  {
+	remote := connectRemote(c.conf.TunnelAddr)
+	session, _ := yamux.Server(remote, nil)
 	for {
-		s, err := reader.ReadString('\n')
-		if err != nil || err == io.EOF {
+		// 建立多个流通路
+		stream, err := session.Accept()
+		if err != nil {
+			fmt.Println("session over:",err)
 			break
 		}
-
-		// 当有新连接信号出现时，新建一个tcp连接
-		if s == NewConnection+"\n" {
-			stream, _ := session.Open()
-			go clientTunnel(conf.LocalServerAddr,stream)
-		}
+		log.Println("[stream Accept]：")
+		go clientTunnel(c.conf.LocalServerAddr, stream)
 	}
+}
 
-	log.Println("[已断开]" + conf.ControllerAddr)
-	return errors.New("控制已经断开")
+func ClientRun(conf *ClientConfig) {
+	client := ClientTunnel(conf)
+	for i := 0; i < conf.ConnectCount; i++ {
+		go client.ConnectTunnel()
+	}
 }
 
 func clientTunnel(localServerAddr string,conn net.Conn) {
@@ -78,6 +82,6 @@ func connectRemote(remoteTunnelAddr string) *net.TCPConn {
 	if err != nil {
 		log.Println("[连接远端服务失败]" + err.Error())
 	}
-	log.Println("[连接本地服务成功]" + remoteTunnelAddr)
+	log.Println("[连接SC服务成功]" + remoteTunnelAddr)
 	return conn
 }

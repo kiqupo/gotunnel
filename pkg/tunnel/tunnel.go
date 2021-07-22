@@ -4,11 +4,13 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 )
 
-const (
-	KeepAlive     = "KEEP_ALIVE"
-	NewConnection = "NEW_CONNECTION"
+var (
+	once sync.Once
+	server *Server
+	client *Client
 )
 
 func CreateTCPListener(addr string) (*net.TCPListener, error) {

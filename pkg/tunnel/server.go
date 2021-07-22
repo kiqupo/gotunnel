@@ -2,7 +2,7 @@
 package tunnel
 
 import (
-	"fmt"
+	"errors"
 	"github.com/hashicorp/yamux"
 	"log"
 	"net"
@@ -11,181 +11,166 @@ import (
 	"time"
 )
 
-var (
-	clientConn         *net.TCPConn
-	connectionPool     map[string]*ConnMatch
-	connectionPoolLock sync.Mutex
-)
+type Server struct {
+	bucket sync.Map //map[int]*Controller
+	conf   *ServerConfig
+}
 
-type ConnMatch struct {
+// Controller 管理SA通道
+type Controller struct {
+	SAID string
+
+	//与SA通道端口
+	TunnelPort int
+
+	//用户请求端口
+	UserPort int
+
+	TunnelListener *net.TCPListener
+	Connecters     []*Connecter
+	CreatTime      time.Time
+
+	UserListener *net.TCPListener
+}
+
+
+type Connecter struct {
+	Conn    *net.TCPConn
+	Session *yamux.Session
+}
+
+type UserConn struct {
 	addTime time.Time
 	accept  *net.TCPConn
 }
 
 type ServerConfig struct {
-	// 控制通道监听端口
-	ControlPost string
+	// 固定TCP连接数
+	ConnectCount int `json:"connect_count"`
 
-	// 用户请求监听端口
-	VisitorPost string
-
-	// 数据通道监听端口
-	TunnelPost string
+	// 每个tcp连接最大stream数
+	MaxStream int `json:"max_stream"`
 }
 
-func ServerRun(conf *ServerConfig) (err error) {
-	defer func() {
-		if err = recover().(error); err != nil {
-			fmt.Println(err)
+func ServerTunnel(conf *ServerConfig) *Server {
+	once.Do(func() {
+		server = &Server{
+			conf:   conf,
 		}
-	}()
+	})
+	return server
+}
 
-	connectionPool = make(map[string]*ConnMatch, 32)
-	go serveControlChannel(conf.ControlPost)
-	go userRequestListener(conf.VisitorPost)
-	go saTunnelListener(conf.TunnelPost)
-	cleanConnectionPool()
+func RegisterController(saId string, tunnelPort,userPort int) (err error) {
+	if server != nil {
+		c := &Controller{
+			SAID:        saId,
+			TunnelPort:  tunnelPort,
+			UserPort:    userPort,
+		}
+		err = c.TunnelListen()
+		if err != nil {
+			return
+		}
+		err = c.UserListen()
+		if err != nil {
+			return
+		}
+		server.bucket.Store(userPort, c)
+		return
+	}
+	return errors.New("TunnelServer单例未初始化")
+}
+
+func UnRegisterController(userPort int) error  {
+	if server != nil {
+		
+	}
+	return errors.New("单例未初始化")
+}
+
+func (c *Controller)TunnelListen() error {
+	port := strconv.Itoa(c.TunnelPort)
+	tcpListener, err := CreateTCPListener(":" + port)
+	if err != nil {
+		return err
+	}
+	if c.TunnelListener == nil {
+		c.TunnelListener = tcpListener
+	}
+	log.Println("[监听通道tcp端口]：" + port)
+	go c.ConnListen()
 	return err
 }
 
-// 创建一个控制通道，用于传递控制消息，如：心跳，创建新连接
-func serveControlChannel(controlAddr string) {
-	tcpListener, err := CreateTCPListener(controlAddr)
-	if err != nil {
-		panic(err)
-	}
-
-	log.Println("[已监听控制通道]" + controlAddr)
+func (c *Controller)ConnListen() {
 	for {
-		tcpConn, err := tcpListener.AcceptTCP()
+		tcpConn, err := c.TunnelListener.AcceptTCP()
 		if err != nil {
-			log.Println(err)
+			log.Println(c.TunnelPort, ":[端口连接]:", tcpConn.RemoteAddr().String(), ":创建session错误:", err)
 			continue
 		}
+		log.Println(c.TunnelPort, ":[端口新TCP连接]:", tcpConn.RemoteAddr().String())
 
-		log.Println("[控制通道新连接]" + tcpConn.RemoteAddr().String())
-		// 如果当前已经有一个客户端存在，则丢弃这个链接
-		if clientConn != nil {
-			_ = tcpConn.Close()
-		} else {
-			clientConn = tcpConn
-			go keepAlive(tcpConn)
-		}
-	}
-}
-
-// 和客户端保持一个心跳链接
-func keepAlive(conn *net.TCPConn) {
-	for {
-		if conn == nil {
-			return
-		}
-		_, err := conn.Write(([]byte)(KeepAlive + "\n"))
+		var session *yamux.Session
+		session, err = yamux.Client(tcpConn, nil)
 		if err != nil {
-			log.Println("[已断开客户端连接]", conn.RemoteAddr())
-			clientConn = nil
-			return
+			log.Println(c.TunnelPort, ":[端口连接]:", tcpConn.RemoteAddr().String(), ":创建session错误:", err)
+			continue
 		}
-		time.Sleep(time.Second * 3)
+		newconn := &Connecter{
+			Conn:    tcpConn,
+			Session: session,
+		}
+		c.Connecters = append(c.Connecters, newconn)
 	}
 }
 
-// 监听来自用户的请求
-func userRequestListener(visitAddr string) {
-	tcpListener, err := CreateTCPListener(visitAddr)
+func (c *Controller)UserListen()error {
+	port := strconv.Itoa(c.UserPort)
+	tcpListener, err := CreateTCPListener(":" + port)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	defer tcpListener.Close()
+	if c.UserListener == nil {
+		c.UserListener = tcpListener
+	}
+	log.Println("[监听用户tcp端口]：" + port)
+	go c.RequestListen()
+	return err
+}
+
+func (c *Controller)RequestListen()  {
 	for {
-		tcpConn, err := tcpListener.AcceptTCP()
+		userConn, err := c.UserListener.AcceptTCP()
 		if err != nil {
 			continue
 		}
-		log.Println("[新用户请求]：" + tcpConn.RemoteAddr().String())
-		addConn2Pool(tcpConn)
-		// 通知客户端建立通道
-		sendMessage(NewConnection + "\n")
+		log.Println("[新用户请求]：" + userConn.RemoteAddr().String())
+		c.establishTunnel(userConn)
 	}
 }
 
-// 将用户来的连接放入连接池中
-func addConn2Pool(accept *net.TCPConn) {
-	connectionPoolLock.Lock()
-	defer connectionPoolLock.Unlock()
-
-	now := time.Now()
-	connectionPool[strconv.FormatInt(now.UnixNano(), 10)] = &ConnMatch{now, accept}
-}
-
-// 发送给客户端新消息
-func sendMessage(message string) {
-	if clientConn == nil {
-		log.Println("[无已连接的客户端]")
-		return
-	}
-	_, err := clientConn.Write([]byte(message))
-	if err != nil {
-		log.Println("[发送消息异常]: message: ", message)
-	}
-}
-
-// 接收sa来的请求并建立隧道
-func saTunnelListener(tunnelAddr string) {
-	tcpListener, err := CreateTCPListener(tunnelAddr)
-	if err != nil {
-		panic(err)
-	}
-	defer tcpListener.Close()
-
-	for {
-		tcpConn, err := tcpListener.AcceptTCP()
-		if err != nil {
-			continue
-		}
-		go sessionServer(tcpConn)
-	}
-}
-
-func sessionServer(tcpConn *net.TCPConn)  {
-	session, _ := yamux.Server(tcpConn, nil)
-	for {
-		// 建立多个流通路
-		stream, err := session.Accept()
-		if err != nil {
-			fmt.Println("session over.")
-			return
-		}
-		log.Println("[新客户端请求隧道]：" + tcpConn.RemoteAddr().String())
-		go establishTunnel(stream)
-	}
-}
-
-func establishTunnel(tunnel net.Conn) {
-	connectionPoolLock.Lock()
-	defer connectionPoolLock.Unlock()
-
-	for key, connMatch := range connectionPool {
-		if connMatch.accept != nil {
-			go Join2Conn(connMatch.accept, tunnel)
-			delete(connectionPool, key)
+func (c *Controller)establishTunnel(reqConn *net.TCPConn) {
+	for _, connecter := range c.Connecters {
+		if connecter.Session.NumStreams() < server.conf.MaxStream {
+			stream, _ := connecter.Session.Open()
+			go Join2Conn(reqConn, stream)
 			return
 		}
 	}
-
-	_ = tunnel.Close()
 }
 
-func cleanConnectionPool() {
-	for {
-		connectionPoolLock.Lock()
-		for key, connMatch := range connectionPool {
-			if time.Now().Sub(connMatch.addTime) > time.Second*10 {
-				_ = connMatch.accept.Close()
-				delete(connectionPool, key)
-			}
-		}
-		connectionPoolLock.Unlock()
-		time.Sleep(5 * time.Second)
-	}
-}
+//func (s *Server) Run() (err error) {
+//	defer func() {
+//		if err := recover(); err != nil {
+//			// TODO:panic后操作
+//			fmt.Println(err)
+//		}
+//	}()
+//
+//	go userRequestListener(s.conf.VisitorPost)
+//	//go saTunnelListener(conf.TunnelPost)
+//	cleanConnectionPool()
+//	return err
+//}
