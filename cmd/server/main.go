@@ -20,8 +20,6 @@ func main() {
 		ConnectCount: 5,
 		MaxStream:    5,
 	}
-	//server := tunnel.ServerTunnel(conf)
-	//go server.Run()
 
 	tunnel.ServerTunnel(conf)
 
