@@ -9,8 +9,8 @@ import (
 
 const (
 	// 测试端口
-	tunnelPost  = 8008
-	visitPost   = 8007
+	tunnelPost = 8008
+	visitPost  = 8007
 	// pprof性能监听端口
 	monitorPost = ":6060"
 )
@@ -32,6 +32,6 @@ func main() {
 }
 
 // pprof性能监听
-func pprofMonitor()  {
+func pprofMonitor() {
 	log.Println(http.ListenAndServe(monitorPost, nil))
 }

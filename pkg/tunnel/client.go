@@ -8,7 +8,7 @@ import (
 )
 
 type Client struct {
-	conf   *ClientConfig
+	conf *ClientConfig
 }
 
 type ClientConfig struct {
@@ -25,20 +25,20 @@ type ClientConfig struct {
 func ClientTunnel(conf *ClientConfig) *Client {
 	once.Do(func() {
 		client = &Client{
-			conf:   conf,
+			conf: conf,
 		}
 	})
 	return client
 }
 
-func (c *Client)ConnectTunnel()  {
+func (c *Client) ConnectTunnel() {
 	remote := connectRemote(c.conf.TunnelAddr)
 	session, _ := yamux.Server(remote, nil)
 	for {
 		// 建立多个流通路
 		stream, err := session.Accept()
 		if err != nil {
-			fmt.Println("session over:",err)
+			fmt.Println("session over:", err)
 			break
 		}
 		log.Println("[stream Accept]：")
@@ -53,7 +53,7 @@ func ClientRun(conf *ClientConfig) {
 	}
 }
 
-func clientTunnel(localServerAddr string,conn net.Conn) {
+func clientTunnel(localServerAddr string, conn net.Conn) {
 	local := connectLocal(localServerAddr)
 
 	if local != nil && conn != nil {

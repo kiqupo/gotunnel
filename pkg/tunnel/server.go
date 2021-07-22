@@ -33,7 +33,6 @@ type Controller struct {
 	UserListener *net.TCPListener
 }
 
-
 type Connecter struct {
 	Conn    *net.TCPConn
 	Session *yamux.Session
@@ -55,18 +54,18 @@ type ServerConfig struct {
 func ServerTunnel(conf *ServerConfig) *Server {
 	once.Do(func() {
 		server = &Server{
-			conf:   conf,
+			conf: conf,
 		}
 	})
 	return server
 }
 
-func RegisterController(saId string, tunnelPort,userPort int) (err error) {
+func RegisterController(saId string, tunnelPort, userPort int) (err error) {
 	if server != nil {
 		c := &Controller{
-			SAID:        saId,
-			TunnelPort:  tunnelPort,
-			UserPort:    userPort,
+			SAID:       saId,
+			TunnelPort: tunnelPort,
+			UserPort:   userPort,
 		}
 		err = c.TunnelListen()
 		if err != nil {
@@ -82,14 +81,14 @@ func RegisterController(saId string, tunnelPort,userPort int) (err error) {
 	return errors.New("TunnelServer单例未初始化")
 }
 
-func UnRegisterController(userPort int) error  {
+func UnRegisterController(userPort int) error {
 	if server != nil {
-		
+
 	}
 	return errors.New("单例未初始化")
 }
 
-func (c *Controller)TunnelListen() error {
+func (c *Controller) TunnelListen() error {
 	port := strconv.Itoa(c.TunnelPort)
 	tcpListener, err := CreateTCPListener(":" + port)
 	if err != nil {
@@ -103,7 +102,7 @@ func (c *Controller)TunnelListen() error {
 	return err
 }
 
-func (c *Controller)ConnListen() {
+func (c *Controller) ConnListen() {
 	for {
 		tcpConn, err := c.TunnelListener.AcceptTCP()
 		if err != nil {
@@ -126,7 +125,7 @@ func (c *Controller)ConnListen() {
 	}
 }
 
-func (c *Controller)UserListen()error {
+func (c *Controller) UserListen() error {
 	port := strconv.Itoa(c.UserPort)
 	tcpListener, err := CreateTCPListener(":" + port)
 	if err != nil {
@@ -140,7 +139,7 @@ func (c *Controller)UserListen()error {
 	return err
 }
 
-func (c *Controller)RequestListen()  {
+func (c *Controller) RequestListen() {
 	for {
 		userConn, err := c.UserListener.AcceptTCP()
 		if err != nil {
@@ -151,7 +150,7 @@ func (c *Controller)RequestListen()  {
 	}
 }
 
-func (c *Controller)establishTunnel(reqConn *net.TCPConn) {
+func (c *Controller) establishTunnel(reqConn *net.TCPConn) {
 	for _, connecter := range c.Connecters {
 		if connecter.Session.NumStreams() < server.conf.MaxStream {
 			stream, _ := connecter.Session.Open()
@@ -160,17 +159,3 @@ func (c *Controller)establishTunnel(reqConn *net.TCPConn) {
 		}
 	}
 }
-
-//func (s *Server) Run() (err error) {
-//	defer func() {
-//		if err := recover(); err != nil {
-//			// TODO:panic后操作
-//			fmt.Println(err)
-//		}
-//	}()
-//
-//	go userRequestListener(s.conf.VisitorPost)
-//	//go saTunnelListener(conf.TunnelPost)
-//	cleanConnectionPool()
-//	return err
-//}

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	once sync.Once
+	once   sync.Once
 	server *Server
 	client *Client
 )
@@ -30,19 +30,19 @@ func CreateTCPConn(addr string) (*net.TCPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	tcpListener, err := net.DialTCP("tcp",nil, tcpAddr)
+	tcpListener, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
 		return nil, err
 	}
 	return tcpListener, nil
 }
 
-func Join2Conn(local,remote net.Conn) {
+func Join2Conn(local, remote net.Conn) {
 	go joinConn(local, remote)
 	go joinConn(remote, local)
 }
 
-func joinConn(local,remote net.Conn) {
+func joinConn(local, remote net.Conn) {
 	defer local.Close()
 	defer remote.Close()
 	_, err := io.Copy(local, remote)

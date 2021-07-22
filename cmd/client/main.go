@@ -10,7 +10,7 @@ import (
 
 const (
 	// 远端服务端口，用来建立隧道
-	remoteServerAddr  = "127.0.0.1:8008"
+	remoteServerAddr = "127.0.0.1:8008"
 	// 本地需要映射的服务端口
 	localServerAddr = "127.0.0.1:8080"
 
@@ -24,18 +24,18 @@ func main() {
 	runHttp()
 }
 
-func runTunnel()  {
+func runTunnel() {
 	// 模拟已请求到端口与固定连接数
 	conf := &tunnel.ClientConfig{
-		ConnectCount:5,
-		TunnelAddr:remoteServerAddr,
-		LocalServerAddr:localServerAddr,
+		ConnectCount:    5,
+		TunnelAddr:      remoteServerAddr,
+		LocalServerAddr: localServerAddr,
 	}
 	tunnel.ClientRun(conf)
 }
 
 // 模拟HTTP服务
-func runHttp()  {
+func runHttp() {
 	r := gin.Default()
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -46,6 +46,6 @@ func runHttp()  {
 }
 
 // pprof性能监听
-func pprofMonitor()  {
+func pprofMonitor() {
 	log.Println(http.ListenAndServe(monitorPost, nil))
 }
