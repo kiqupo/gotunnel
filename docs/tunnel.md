@@ -31,4 +31,8 @@ SA启动时请求通道接口，SC根据SA上报的SAID，分配出不重复的�
 3. 机制：把N个TCP连接虚拟成N个session，接收到用户请求后再动态创建stream连接。<br/>
    ![连接创建逻辑图](images/newconnect.png)
 
+## 测试结果：
+1. websocket测试：
+![ws测试结果图](images/wstest.png)
+
 ## TODO：

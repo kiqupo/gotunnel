@@ -6,6 +6,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"tunnelDemo/pkg/tunnel"
+	"tunnelDemo/test"
 )
 
 const (
@@ -42,7 +43,9 @@ func runHttp() {
 			"message": "hello world",
 		})
 	})
-	r.Run(":8080") // 监听并在 0.0.0.0:8080 上启动服务
+	r.GET("/file", test.Download)
+	r.GET("/ws", test.WsHandle)
+	r.Run(":8080")
 }
 
 // pprof性能监听
