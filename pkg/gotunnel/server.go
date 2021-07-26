@@ -1,5 +1,4 @@
-// Package tunnel TODO 1.ControllerManager控制通道连接池管理，2.Controller对象管理
-package tunnel
+package gotunnel
 
 import (
 	"errors"
