@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"tunnelDemo/pkg/tunnel"
+	"tunnelDemo/pkg/gotunnel"
 )
 
 const (
@@ -16,15 +16,15 @@ const (
 )
 
 func main() {
-	conf := &tunnel.ServerConfig{
+	conf := &gotunnel.ServerConfig{
 		ConnectCount: 5,
 		MaxStream:    5,
 	}
 
-	tunnel.ServerTunnel(conf)
+	gotunnel.ServerTunnel(conf)
 
 	// 模拟分配端口
-	tunnel.RegisterController("213", tunnelPost, visitPost)
+	gotunnel.RegisterController("213", tunnelPost, visitPost)
 
 	pprofMonitor()
 }

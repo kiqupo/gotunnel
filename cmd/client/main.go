@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"tunnelDemo/pkg/tunnel"
+	"tunnelDemo/pkg/gotunnel"
 	"tunnelDemo/test"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -27,12 +28,12 @@ func main() {
 
 func runTunnel() {
 	// 模拟已请求到端口与固定连接数
-	conf := &tunnel.ClientConfig{
+	conf := &gotunnel.ClientConfig{
 		ConnectCount:    5,
 		TunnelAddr:      remoteServerAddr,
 		LocalServerAddr: localServerAddr,
 	}
-	tunnel.ClientRun(conf)
+	gotunnel.ClientRun(conf)
 }
 
 // 模拟HTTP服务
